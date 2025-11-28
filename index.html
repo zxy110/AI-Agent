@@ -215,7 +215,7 @@ async function sendMessage() {
   let assistantText = "";
 
   try {
-    const res = await fetch("http://172.20.10.9:5001/chat_stream", {
+    const res = await fetch("https://ai-99s8.onrender.com/chat_stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messages: messageHistory })
