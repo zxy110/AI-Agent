@@ -177,16 +177,12 @@ function sendMessage() {
   messageHistory.push({ role: "user", content: text });
   if (messageHistory.length > 21) messageHistory.splice(1, 2);
 
-  fetch("https://api.openai.com/v1/chat/completions", {
+  fetch("https://your-backend-url.onrender.com/chat", {  // 👈 改成你的后端 URL
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer xxxxxxxxxxxxxx"
+      "Content-Type": "application/json"
     },
-    body: JSON.stringify({
-      model: "gpt-4o",
-      messages: messageHistory
-    })
+    body: JSON.stringify({ messages: messageHistory })
   })
   .then(res => res.json())
   .then(data => {
