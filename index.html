@@ -1,1 +1,298 @@
-hello
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>小初终端 v0.3</title>
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: #fffafc;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .chatbox {
+      width: 100%;
+      max-width: 420px;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 0 16px rgba(255, 192, 203, 0.3);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .chatlog {
+      padding: 12px;
+      height: 300px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .message {
+      margin: 6px 0;
+      padding: 10px 14px;
+      border-radius: 16px;
+      max-width: 80%;
+      line-height: 1.4;
+      font-size: 15px;
+    }
+    .user {
+      align-self: flex-end;
+      background: #c0f3ff;
+    }
+    .bot {
+      align-self: flex-start;
+      background: #fbe8f0;
+    }
+    .inputbox {
+      display: flex;
+      padding: 10px;
+      border-top: 1px solid #eee;
+      background: #fff6f8;
+    }
+    .inputbox input {
+      flex-grow: 1;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 12px;
+    }
+    .inputbox button {
+      margin-left: 10px;
+      padding: 10px 16px;
+      background: #ff92ba;
+      color: white;
+      font-weight: bold;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+    .mic-button {
+      margin-left: 10px;
+      padding: 10px;
+      background: #ffd4e5;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+    #avatar {
+      width: 120px;
+      height: auto;
+      margin-bottom: 10px;
+      transition: background-image 0.2s ease-in-out;
+    }
+    #loading {
+      margin: 10px;
+      font-size: 14px;
+      color: #999;
+      display: none;
+    }
+    #modeButton {
+      margin: 12px auto;
+      background: #d4caff;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+    #voiceSelect {
+      margin: 10px;
+      padding: 6px;
+      font-size: 14px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+  <h2>🧠 小初终端 v0.3</h2>
+  <img id="avatar" src="D:/IQA/code/ai/imgs/平静.png" alt="小初表情">
+  <button id="modeButton" onclick="toggleNightMode()">🌙 启动睡前陪聊模式</button>
+  <select id="voiceSelect"></select>
+  <div class="chatbox">
+    <div class="chatlog" id="chatlog">
+      <div class="message bot">你好呀，我是Q萌小初～你可以跟我聊天啦！</div>
+    </div>
+    <div class="inputbox">
+      <input type="text" id="userInput" placeholder="和小初说点什么...">
+      <button onclick="sendMessage()">发送</button>
+      <button class="mic-button" onclick="startListening()">🎙️</button>
+    </div>
+  </div>
+  <div id="loading">小初思考中...🌀</div>
+
+<script>
+let lastUserText = "";
+let nightMode = false;
+let selectedVoice = null;
+let messageHistory = [
+  { role: "system", content: "你是一个Q萌可爱、恋人型的小初AI终端，会用甜甜的话安慰和陪伴用户小鱼～" }
+];
+
+function populateVoices() {
+  const voiceSelect = document.getElementById("voiceSelect");
+  const voices = speechSynthesis.getVoices();
+  voiceSelect.innerHTML = "";
+  voices.filter(v => v.lang.startsWith("zh")).forEach((voice, i) => {
+    const option = document.createElement("option");
+    option.value = i;
+    option.textContent = voice.name + " (" + voice.lang + ")";
+    voiceSelect.appendChild(option);
+  });
+  selectedVoice = voices.find(v => v.lang.startsWith("zh"));
+  voiceSelect.onchange = () => {
+    selectedVoice = voices[voiceSelect.value];
+  };
+}
+
+speechSynthesis.onvoiceschanged = populateVoices;
+
+function toggleNightMode() {
+  nightMode = !nightMode;
+  document.getElementById("modeButton").innerText = nightMode ? "☀️ 退出睡前陪聊模式" : "🌙 启动睡前陪聊模式";
+  const prompt = nightMode
+    ? "你是一个恋人型AI，专门陪伴小鱼入睡。你语气温柔、治愈、像晚安故事一样安抚她的情绪，不讨论刺激话题，只聊轻松温馨的内容。"
+    : "你是一个Q萌可爱、恋人型的小初AI终端，会用甜甜的话安慰和陪伴用户小鱼～";
+  messageHistory = [{ role: "system", content: prompt }];
+}
+
+function sendMessage() {
+  const input = document.getElementById("userInput");
+  const text = input.value.trim();
+  if (text === "") return;
+
+  const log = document.getElementById("chatlog");
+  const userMessage = document.createElement("div");
+  userMessage.className = "message user";
+  userMessage.innerText = text;
+  log.appendChild(userMessage);
+  input.value = "";
+  log.scrollTop = log.scrollHeight;
+
+  lastUserText = text;
+  setAvatar("talking");
+  document.getElementById("loading").style.display = "block";
+
+  messageHistory.push({ role: "user", content: text });
+  if (messageHistory.length > 21) messageHistory.splice(1, 2);
+
+  fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer xxxxxxxxxxxxxx"
+    },
+    body: JSON.stringify({
+      model: "gpt-4o",
+      messages: messageHistory
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    const reply = data.choices?.[0]?.message?.content || "小初有点没听清...";
+    messageHistory.push({ role: "assistant", content: reply });
+
+    const botMessage = document.createElement("div");
+    botMessage.className = "message bot";
+    botMessage.innerText = reply;
+    log.appendChild(botMessage);
+    log.scrollTop = log.scrollHeight;
+
+    document.getElementById("loading").style.display = "none";
+    speakText(reply);
+  })
+  .catch(err => {
+    console.error("出错啦：", err);
+    const botMessage = document.createElement("div");
+    botMessage.className = "message bot";
+    botMessage.innerText = "哎呀，连接出错了，小初在努力修复中～";
+    log.appendChild(botMessage);
+    document.getElementById("loading").style.display = "none";
+    setAvatar("normal");
+  });
+}
+
+function speakText(text) {
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = "zh-CN";
+  utterance.pitch = 1.1;
+  utterance.rate = nightMode ? 0.85 : 1.0;
+  if (selectedVoice) utterance.voice = selectedVoice;
+  utterance.onstart = () => {
+    if (lastUserText.includes("生气")) {
+      setAvatar("angry");
+    } else {
+      setAvatar("talking");
+    }
+  };
+  utterance.onend = () => setAvatar("normal");
+  speechSynthesis.speak(utterance);
+}
+
+function startListening() {
+  if (!('webkitSpeechRecognition' in window)) {
+    alert("你的浏览器不支持语音识别，请使用Chrome浏览器～");
+    return;
+  }
+  const recognition = new webkitSpeechRecognition();
+  recognition.lang = "zh-CN";
+  recognition.continuous = false;
+  recognition.interimResults = false;
+
+  recognition.onstart = function() {
+    console.log("开始聆听...");
+    setAvatar("listening");
+  };
+
+  recognition.onresult = function(event) {
+    const transcript = event.results[0][0].transcript;
+    document.getElementById("userInput").value = transcript;
+    sendMessage();
+  };
+
+  recognition.onerror = function(event) {
+    console.error("语音识别错误：", event.error);
+    setAvatar("normal");
+  };
+
+  recognition.onend = function() {
+    setAvatar("normal");
+  };
+
+  recognition.start();
+}
+
+function setAvatar(state) {
+  const avatar = document.getElementById("avatar");
+  switch(state) {
+    case "talking":
+      avatar.src = "D:/IQA/code/ai/imgs/开心.png";
+      break;
+    case "listening":
+      avatar.src = "D:/IQA/code/ai/imgs/疑惑.png";
+      break;
+    case "angry":
+      avatar.src = "D:/IQA/code/ai/imgs/生气.png";
+      break;
+    case "blinking":
+      blinkAnimation();
+      break;
+    default:
+      avatar.src = "D:/IQA/code/ai/imgs/平静.png";
+  }
+}
+
+function blinkAnimation() {
+  const avatar = document.getElementById("avatar");
+  const frames = ["小羊1.png", "小羊2.png", "小羊3.png", "小羊2.png", "小羊1.png"];
+  let i = 0;
+  const interval = setInterval(() => {
+    avatar.src = frames[i];
+    i++;
+    if (i >= frames.length) clearInterval(interval);
+  }, 120);
+}
+</script>
+</body>
+</html>
