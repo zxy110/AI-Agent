@@ -107,7 +107,7 @@
 </head>
 <body>
   <h2>🧠 小初终端 v0.3</h2>
-  <img id="avatar" src="imgs/平静.png" alt="小初表情">
+  <img id="avatar" src="imgs/平静.jpg" alt="小初表情">
   <button id="modeButton" onclick="toggleNightMode()">🌙 启动睡前陪聊模式</button>
   <select id="voiceSelect"></select>
   <div class="chatbox">
@@ -263,19 +263,19 @@ function setAvatar(state) {
   const avatar = document.getElementById("avatar");
   switch(state) {
     case "talking":
-      avatar.src = "imgs/开心.png";
+      avatar.src = "imgs/开心.jpg";
       break;
     case "listening":
-      avatar.src = "imgs/疑惑.png";
+      avatar.src = "imgs/疑惑.jpg";
       break;
     case "angry":
-      avatar.src = "imgs/生气.png";
+      avatar.src = "imgs/生气.jpg";
       break;
     case "blinking":
       blinkAnimation();
       break;
     default:
-      avatar.src = "imgs/平静.png";
+      avatar.src = "imgs/平静.jpg";
   }
 }
 
