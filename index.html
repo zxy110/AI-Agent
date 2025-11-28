@@ -177,7 +177,7 @@ function sendMessage() {
   messageHistory.push({ role: "user", content: text });
   if (messageHistory.length > 21) messageHistory.splice(1, 2);
 
-  fetch("https://your-backend-url.onrender.com/chat", {  // 👈 改成你的后端 URL
+  fetch("https://ai-agent-5i25.onrender.com", {  // 👈 改成你的后端 URL
     method: "POST",
     headers: {
       "Content-Type": "application/json"
