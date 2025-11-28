@@ -208,62 +208,43 @@ async function sendMessage() {
   messageHistory.push({ role: "user", content: text });
   if (messageHistory.length > 21) messageHistory.splice(1, 2);
 
+  // 🧡 3. 调用流式 streamChat —— 核心！！
   let assistantText = "";
-  try {
-    // 🧡 3. 调用流式 streamChat —— 核心！！
-    let assistantText = "";
-    const res = await fetch("https://ai-99s8.onrender.com/chat_stream", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: messageHistory })
-    });
+  const res = await fetch("https://ai-99s8.onrender.com/chat_stream", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages: messageHistory })
+  });
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
 
-    if (!res.ok || !res.body) {
-      throw new Error("服务器无响应");
-    }
+  // 🧡 4. 新建一个 bot 气泡用于逐字流式更新
+  const botMessage = document.createElement("div");
+  botMessage.className = "message bot";
+  botMessage.innerText = "";
+  log.appendChild(botMessage);
 
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-
-    // 🧡 4. 新建一个 bot 气泡用于逐字流式更新
-    const botMessage = document.createElement("div");
-    botMessage.className = "message bot";
-    botMessage.innerText = "";
-    log.appendChild(botMessage);
-
-    // 🧡 5. 流式逐 chunk 接收
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const chunk = decoder.decode(value);
-      assistantText += chunk;
-      // 实时更新内容
-      botMessage.innerText += chunk;
-      log.scrollTop = log.scrollHeight;
-    }
-
-    // 🧡 6. 流结束：加入历史
-    messageHistory.push({
-      role: "assistant",
-      content: assistantText
-    });
-
-    // 🧡 7. 播放语音
-    document.getElementById("loading").style.display = "none";
-    speakText(assistantText);
-    setAvatar("normal");
-  } catch (err) {
-    console.error("流式错误：", err);
-
-    const botMessage = document.createElement("div");
-    botMessage.className = "message bot";
-    botMessage.innerText = "哎呀，小初迷路啦，网络好像断开了～";
-    log.appendChild(botMessage);
+  // 🧡 5. 流式逐 chunk 接收
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const chunk = decoder.decode(value);
+    assistantText += chunk;
+    // 实时更新内容
+    botMessage.innerText += chunk;
     log.scrollTop = log.scrollHeight;
-
-    document.getElementById("loading").style.display = "none";
-    setAvatar("normal");
   }
+
+  // 🧡 6. 流结束：加入历史
+  messageHistory.push({
+    role: "assistant",
+    content: assistantText
+  });
+
+  // 🧡 7. 播放语音
+  document.getElementById("loading").style.display = "none";
+  speakText(assistantText);
+  setAvatar("normal");
 }
 
 function speakText(text) {
