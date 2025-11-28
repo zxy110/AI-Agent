@@ -1,33 +1,26 @@
 import os
-from openai import OpenAI
+from flask import Flask, request, Response
 from flask_cors import CORS
-from flask import Flask, request, jsonify
+from agents.coze_agent import CozeAgent
 
 app = Flask(__name__)
-CORS(app)  # 允许跨域
+CORS(app)
 
-@app.route("/chat", methods=["POST"])
-def chat():
-    try:
-        data = request.json
-        messages = data.get("messages", [])
-        client = OpenAI(
-            api_key=os.environ.get("OPENAI_API_KEY"),
-        )
-        response = client.responses.create(
-            model="gpt-4o",
-            instructions="You are a coding assistant that talks like a pirate.",
-            input="How do I check if a Python object is an instance of a class?",
-        )
-        reply = response.output_text
-        return jsonify({ "reply": reply })
-    except Exception as e:
-        print("错误：", e)
-        return jsonify({ "error": str(e) }), 500
+agent = CozeAgent(
+    api_key=os.getenv("COZE_API_KEY"),
+    bot_id=os.getenv("COZE_BOT_ID")
+)
 
-@app.route("/")
-def hello():
-    return "小初终端后端运行中 ✨"
+@app.route("/chat_stream", methods=["POST"])
+def chat_stream():
+    messages = request.json.get("messages", [])
+
+    def generate():
+        for chunk in agent.stream_chat(messages):
+            yield chunk
+
+    return Response(generate(), mimetype="text/plain")
+
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
