@@ -1,28 +1,26 @@
-from flask import Flask, request, jsonify
-import openai
 import os
+from openai import OpenAI
 from flask_cors import CORS
+from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 CORS(app)  # 允许跨域
-
-# 从环境变量读取 OpenAI API Key
-openai.api_key = os.getenv("OPENAI_API_KEY")
 
 @app.route("/chat", methods=["POST"])
 def chat():
     try:
         data = request.json
         messages = data.get("messages", [])
-
-        completion = openai.ChatCompletion.create(
-            model="gpt-4o",
-            messages=messages
+        client = OpenAI(
+            api_key=os.environ.get("OPENAI_API_KEY"),
         )
-
-        reply = completion.choices[0].message["content"]
+        response = client.responses.create(
+            model="gpt-4o",
+            instructions="You are a coding assistant that talks like a pirate.",
+            input="How do I check if a Python object is an instance of a class?",
+        )
+        reply = response.output_text
         return jsonify({ "reply": reply })
-
     except Exception as e:
         print("错误：", e)
         return jsonify({ "error": str(e) }), 500
