@@ -1,3 +1,4 @@
+<!-- 我将为你插入错误处理版本的 sendMessage。请贴你的完整代码，我会逐段替换。 -->
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -192,26 +193,28 @@ async function sendMessage() {
   const input = document.getElementById("userInput");
   const text = input.value.trim();
   if (text === "") return;
+
   const log = document.getElementById("chatlog");
-  // 🧡 1. 前端显示用户消息（泡泡）
+
+  // 用户消息
   const userMessage = document.createElement("div");
   userMessage.className = "message user";
   userMessage.innerText = text;
   log.appendChild(userMessage);
   input.value = "";
   log.scrollTop = log.scrollHeight;
+
   lastUserText = text;
   setAvatar("talking");
   document.getElementById("loading").style.display = "block";
 
-  // 🧡 2. 把用户消息加入历史（你已做过，但这里逻辑保持一致）
+  // 写入历史
   messageHistory.push({ role: "user", content: text });
   if (messageHistory.length > 21) messageHistory.splice(1, 2);
 
   let assistantText = "";
+
   try {
-    // 🧡 3. 调用流式 streamChat —— 核心！！
-    let assistantText = "";
     const res = await fetch("https://ai-99s8.onrender.com/chat_stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -225,33 +228,27 @@ async function sendMessage() {
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
 
-    // 🧡 4. 新建一个 bot 气泡用于逐字流式更新
     const botMessage = document.createElement("div");
     botMessage.className = "message bot";
     botMessage.innerText = "";
     log.appendChild(botMessage);
 
-    // 🧡 5. 流式逐 chunk 接收
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
+
       const chunk = decoder.decode(value);
       assistantText += chunk;
-      // 实时更新内容
       botMessage.innerText += chunk;
       log.scrollTop = log.scrollHeight;
     }
 
-    // 🧡 6. 流结束：加入历史
-    messageHistory.push({
-      role: "assistant",
-      content: assistantText
-    });
+    messageHistory.push({ role: "assistant", content: assistantText });
 
-    // 🧡 7. 播放语音
     document.getElementById("loading").style.display = "none";
     speakText(assistantText);
     setAvatar("normal");
+
   } catch (err) {
     console.error("流式错误：", err);
 
@@ -265,6 +262,7 @@ async function sendMessage() {
     setAvatar("normal");
   }
 }
+
 
 function speakText(text) {
   const utterance = new SpeechSynthesisUtterance(text);
