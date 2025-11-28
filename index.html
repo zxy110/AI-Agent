@@ -107,7 +107,7 @@
 </head>
 <body>
   <h2>🧠 小初终端 v0.3</h2>
-  <img id="avatar" src="D:/IQA/code/ai/imgs/平静.png" alt="小初表情">
+  <img id="avatar" src="imgs/平静.png" alt="小初表情">
   <button id="modeButton" onclick="toggleNightMode()">🌙 启动睡前陪聊模式</button>
   <select id="voiceSelect"></select>
   <div class="chatbox">
@@ -177,7 +177,7 @@ function sendMessage() {
   messageHistory.push({ role: "user", content: text });
   if (messageHistory.length > 21) messageHistory.splice(1, 2);
 
-  fetch("https://ai-99s8.onrender.com", {  // 👈 改成你的后端 URL
+  fetch("https://ai-99s8.onrender.com/chat", {  // 👈 改成你的后端 URL
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -263,19 +263,19 @@ function setAvatar(state) {
   const avatar = document.getElementById("avatar");
   switch(state) {
     case "talking":
-      avatar.src = "D:/IQA/code/ai/imgs/开心.png";
+      avatar.src = "imgs/开心.png";
       break;
     case "listening":
-      avatar.src = "D:/IQA/code/ai/imgs/疑惑.png";
+      avatar.src = "imgs/疑惑.png";
       break;
     case "angry":
-      avatar.src = "D:/IQA/code/ai/imgs/生气.png";
+      avatar.src = "imgs/生气.png";
       break;
     case "blinking":
       blinkAnimation();
       break;
     default:
-      avatar.src = "D:/IQA/code/ai/imgs/平静.png";
+      avatar.src = "imgs/平静.png";
   }
 }
 
