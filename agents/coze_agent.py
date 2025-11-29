@@ -74,10 +74,10 @@ class CozeAgent(BaseAgent):
                     yield chunk
                 continue
 
-            # content 模式（文本片段）
-            if "content" in obj:
-                parts = obj["content"]
-                for text in parts:
-                    print(text)
-                    if text:
-                        yield text
+            # # content 模式（文本片段）
+            # if "content" in obj:
+            #     parts = obj["content"]
+            #     for text in parts:
+            #         print(text)
+            #         if text:
+            #             yield text
