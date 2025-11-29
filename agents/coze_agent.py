@@ -6,8 +6,8 @@ from .base_agent import BaseAgent
 class CozeAgent(BaseAgent):
 
     def __init__(self, api_key, bot_id):
-        self.api_key = 'cztei_h7bp5taZdCv9og6Jtr0EqQeYcPjZmGBVvmGDFIXn7UsIAx1hKAQdBvkxXS96Cwdjr'
-        self.bot_id = '7574618766076952627'
+        self.api_key = api_key
+        self.bot_id = bot_id
         self.url = "https://api.coze.cn/v3/chat"
 
     def _convert_messages(self, messages):
