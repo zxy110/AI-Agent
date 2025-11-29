@@ -39,45 +39,43 @@ class CozeAgent(BaseAgent):
         }
 
         resp = requests.post(
-            self.url,
-            json=payload,
-            headers=headers,
-            stream=True
-        )
+        self.url,
+        json=payload,
+        headers=headers,
+        stream=True
+    )
 
-        # ---- 流式解析开始 ----
-        for raw in resp.iter_lines():
-            if not raw:
-                continue
+    current_event = None
 
-            line = raw.decode().strip()
+    for raw in resp.iter_lines():
+        if not raw:
+            continue
 
-            # 必须带 data: 前缀
-            if not line.startswith("data:"):
-                continue
+        line = raw.decode().strip()
 
+        # 如果是 event 行，记录下来
+        if line.startswith("event:"):
+            current_event = line[len("event:"):].strip()
+            continue
+
+        # 只处理 data 行
+        if line.startswith("data:"):
             data_str = line[len("data:"):].strip()
 
-            # 结束标记
+            # ignore DONE
             if data_str == "[DONE]":
                 break
 
             try:
                 obj = json.loads(data_str)
-            except Exception:
+            except:
                 continue
 
-            # delta 模式（单字符流式）
-            if "delta" in obj:
-                chunk = obj["delta"]
-                if chunk:
-                    yield chunk
-                continue
+            # ⭐ 只处理 delta event
+            if current_event == "conversation.message.delta":
+                text = obj.get("text", "")
+                if text:
+                    yield text   # ← 传给前端
 
-            # # content 模式（文本片段）
-            # if "content" in obj:
-            #     parts = obj["content"]
-            #     for text in parts:
-            #         print(text)
-            #         if text:
-            #             yield text
+            # 其他 event 忽略
+            continue
