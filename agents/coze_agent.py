@@ -38,7 +38,7 @@ class CozeAgent(BaseAgent):
             "Content-Type": "application/json"
         }
 
-        resp = requests.post(
+    resp = requests.post(
         self.url,
         json=payload,
         headers=headers,
