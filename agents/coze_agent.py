@@ -38,44 +38,44 @@ class CozeAgent(BaseAgent):
             "Content-Type": "application/json"
         }
 
-    resp = requests.post(
-        self.url,
-        json=payload,
-        headers=headers,
-        stream=True
-    )
-
-    current_event = None
-
-    for raw in resp.iter_lines():
-        if not raw:
-            continue
-
-        line = raw.decode().strip()
-
-        # 如果是 event 行，记录下来
-        if line.startswith("event:"):
-            current_event = line[len("event:"):].strip()
-            continue
-
-        # 只处理 data 行
-        if line.startswith("data:"):
-            data_str = line[len("data:"):].strip()
-
-            # ignore DONE
-            if data_str == "[DONE]":
-                break
-
-            try:
-                obj = json.loads(data_str)
-            except:
+        resp = requests.post(
+            self.url,
+            json=payload,
+            headers=headers,
+            stream=True
+        )
+    
+        current_event = None
+    
+        for raw in resp.iter_lines():
+            if not raw:
                 continue
-
-            # ⭐ 只处理 delta event
-            if current_event == "conversation.message.delta" and "content" in obj:
-                parts = obj["content"]
-                for text in parts:
-                    print(text)
-                    if text:
-                        yield text
+    
+            line = raw.decode().strip()
+    
+            # 如果是 event 行，记录下来
+            if line.startswith("event:"):
+                current_event = line[len("event:"):].strip()
+                continue
+    
+            # 只处理 data 行
+            if line.startswith("data:"):
+                data_str = line[len("data:"):].strip()
+    
+                # ignore DONE
+                if data_str == "[DONE]":
+                    break
+    
+                try:
+                    obj = json.loads(data_str)
+                except:
+                    continue
+    
+                # ⭐ 只处理 delta event
+                if current_event == "conversation.message.delta" and "content" in obj:
+                    parts = obj["content"]
+                    for text in parts:
+                        print(text)
+                        if text:
+                            yield text
                         
