@@ -72,10 +72,10 @@ class CozeAgent(BaseAgent):
                 continue
 
             # ⭐ 只处理 delta event
-            if current_event == "conversation.message.delta":
-                text = obj.get("text", "")
-                if text:
-                    yield text   # ← 传给前端
-
-            # 其他 event 忽略
-            continue
+            if current_event == "conversation.message.delta" and "content" in obj:
+                parts = obj["content"]
+                for text in parts:
+                    print(text)
+                    if text:
+                        yield text
+                        
