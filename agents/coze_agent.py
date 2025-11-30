@@ -28,7 +28,7 @@ class CozeAgent(BaseAgent):
 
         payload = {
             "bot_id": self.bot_id,
-            "user_id": "xiaoyu",
+            "user_id": "leo",
             "stream": True,
             "additional_messages": additional_messages,
         }
@@ -78,4 +78,3 @@ class CozeAgent(BaseAgent):
                         print(text)
                         if text:
                             yield text
-                        

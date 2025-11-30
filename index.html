@@ -29,6 +29,25 @@
       display: flex;
       flex-direction: column;
     }
+    .chatlog table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 10px 0;
+      font-size: 14px;
+    }
+    .chatlog th, .chatlog td {
+      border: 1px solid #e3c1c1;
+      padding: 8px;
+      text-align: left;
+    }
+    .chatlog th {
+      background-color: #ffeef2;
+    }
+    .chatlog img {
+      max-width: 100%;
+      border-radius: 8px;
+      margin: 8px 0;
+    }
     .message {
       margin: 6px 0;
       padding: 10px 14px;
@@ -76,6 +95,16 @@
       border-radius: 12px;
       cursor: pointer;
     }
+    #stopButton {
+      margin-left: 10px;
+      padding: 10px 14px;
+      background: #fcb6c2;
+      color: white;
+      font-weight: bold;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+    }
     #avatar {
       width: 120px;
       height: auto;
@@ -104,6 +133,8 @@
       border: 1px solid #ccc;
     }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@2.4.0/dist/purify.min.js"></script>
 </head>
 <body>
   <h2>🧠 小初终端 v0.3</h2>
@@ -117,6 +148,7 @@
     <div class="inputbox">
       <input type="text" id="userInput" placeholder="和小初说点什么...">
       <button onclick="sendMessage()">发送</button>
+      <button id="stopButton" onclick="stopStreaming()">⏹️</button>
       <button class="mic-button" onclick="startListening()">🎙️</button>
     </div>
   </div>
@@ -126,9 +158,15 @@
 let lastUserText = "";
 let nightMode = false;
 let selectedVoice = null;
+let controller = null;
 let messageHistory = [
   { role: "system", content: "你是一个Q萌可爱、恋人型的小初AI终端，会用甜甜的话安慰和陪伴用户小鱼～" }
 ];
+// 配置markdown解析的选项
+marked.setOptions({
+  gfm: true,
+  breaks: true
+});
 
 function populateVoices() {
   const voiceSelect = document.getElementById("voiceSelect");
@@ -188,7 +226,22 @@ async function streamChat(userText) {
   return fullText;
 }
 
+function stopStreaming() {
+  if (controller) {
+    controller.abort();  // 终止请求
+    controller = null;
+    document.getElementById("loading").style.display = "none";
+    setAvatar("normal");
+    const botMessage = document.createElement("div");
+    botMessage.className = "message bot";
+    botMessage.innerText = "（小初暂停发言啦～你可以随时再继续问我哦）";
+    document.getElementById("chatlog").appendChild(botMessage);
+  }
+}
+
 async function sendMessage() {
+  controller = new AbortController();
+  const signal = controller.signal;
   const input = document.getElementById("userInput");
   const text = input.value.trim();
   if (text === "") return;
@@ -217,7 +270,8 @@ async function sendMessage() {
     const res = await fetch("https://ai-99s8.onrender.com/chat_stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: messageHistory })
+      body: JSON.stringify({ messages: messageHistory }),
+      signal: signal
     });
 
     if (!res.ok || !res.body) {
@@ -238,7 +292,13 @@ async function sendMessage() {
 
       const chunk = decoder.decode(value);
       assistantText += chunk;
-      botMessage.innerText += chunk;
+
+      // ✅ 动态选择是否使用 marked
+      const safeHTML = assistantText.includes("**") || assistantText.includes("```")
+        ? DOMPurify.sanitize(marked.parse(assistantText))
+        : DOMPurify.sanitize(assistantText.replace(/\n/g, "<br>"));
+      botMessage.innerHTML = safeHTML;
+
       log.scrollTop = log.scrollHeight;
     }
 
@@ -249,6 +309,10 @@ async function sendMessage() {
     setAvatar("normal");
 
   } catch (err) {
+    if (err.name === "AbortError") {
+      console.log("用户中止了输出");
+      return;
+    }
     console.error("流式错误：", err);
 
     const botMessage = document.createElement("div");
