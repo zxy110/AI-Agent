@@ -239,6 +239,18 @@ function stopStreaming() {
   }
 }
 
+function appendParagraphWithEmotion(emotion, text) {
+  // 设置表情图
+  setAvatar(emotion);
+  // 渲染聊天
+  const log = document.getElementById("chatlog");
+  const botMessage = document.createElement("div");
+  botMessage.className = "message bot";
+  botMessage.innerHTML = DOMPurify.sanitize(marked.parse(text));
+  log.appendChild(botMessage);
+  log.scrollTop = log.scrollHeight;
+}
+
 async function sendMessage() {
   controller = new AbortController();
   const signal = controller.signal;
@@ -286,20 +298,45 @@ async function sendMessage() {
     botMessage.innerText = "";
     log.appendChild(botMessage);
 
+
+    let buffer = "";
+    let currentEmotion = "平静";
+    let chunkBuffer = "";
+    
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-
+    
       const chunk = decoder.decode(value);
-      assistantText += chunk;
-
-      // ✅ 动态选择是否使用 marked
-      const safeHTML = assistantText.includes("**") || assistantText.includes("```")
-        ? DOMPurify.sanitize(DOMPurify.sanitize(marked.parse(assistantText));)
-        : DOMPurify.sanitize(assistantText.replace(/\n/g, "<br>"));
-      botMessage.innerHTML = safeHTML;
-
-      log.scrollTop = log.scrollHeight;
+      buffer += chunk;
+    
+      // 判断是否以 [情绪] 开头
+      let match = buffer.match(/^\[(.*?)\]/); // 只匹配段首情绪
+      if (match) {
+        const newEmotion = match[1];
+        const remainingText = buffer.slice(match[0].length);
+    
+        // 如果上一段有内容，渲染它
+        if (chunkBuffer.trim()) {
+          appendParagraphWithEmotion(currentEmotion, chunkBuffer.trim());
+          assistantText += chunkBuffer.trim();
+        }
+    
+        // 更新情绪 & 开启新段
+        currentEmotion = newEmotion;
+        chunkBuffer = remainingText;
+        buffer = "";
+      } else {
+        // 无新情绪，继续累加内容
+        chunkBuffer += buffer;
+        buffer = "";
+      }
+    }
+    
+    // 收尾处理
+    if (chunkBuffer.trim()) {
+      appendParagraphWithEmotion(currentEmotion, chunkBuffer.trim());
+      assistantText += chunkBuffer.trim();
     }
 
     messageHistory.push({ role: "assistant", content: assistantText });
