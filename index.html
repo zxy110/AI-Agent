@@ -290,16 +290,26 @@ async function sendMessage() {
       if (done) break;
 
       const chunk = decoder.decode(value);
-
-      // 解析句首情绪词格式为 "[xx]"
+      
+      const noNewlines = chunk.replace(/\r?\n|\t/g, "");
+      const matches = Array.from(noNewlines.matchAll(/\[([^\]]+)\]/g));
       let emotion = null;
-      let content = chunk;
-      const match = content.match(/^\s*\[([^\]]+)\]/);
-      if (match) {
-        emotion = match[1];
-        content = content.slice(match[0].length);
+      if (matches.length > 0) {
+        emotion = matches[matches.length - 1][1];
         setAvatar(emotion);
       }
+      let content = noNewlines.replace(/\[([^\]]+)\]/g, "\n");    
+      
+      // // 解析句首情绪词格式为 "[xx]"
+      // let emotion = null;
+      // let content = chunk;
+      // const match = content.match(/^\s*\[([^\]]+)\]/);
+      // if (match) {
+      //   emotion = match[1];
+      //   content = content.slice(match[0].length);
+      //   setAvatar(emotion);
+      // }
+      
       assistantText += content;
       
       // ✅ 动态选择是否使用 marked
