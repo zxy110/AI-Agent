@@ -239,6 +239,49 @@ function stopStreaming() {
   }
 }
 
+function createStreamParser() {
+    let buffer = "";     // 累积的文本
+    let emo = [];        // 已提取的情绪
+    let content = "";    // 展示内容
+    let inBracket = false;
+    let currentEmo = "";
+    return {
+        feed(chunk) {
+            buffer += chunk;
+            for (let i = 0; i < chunk.length; i++) {
+                const char = chunk[i];
+                // 如果遇到 '[' → 开始读取情绪
+                if (!inBracket && char === '[') {
+                    inBracket = true;
+                    currentEmo = "";
+                    continue;
+                }
+                // 如果正在读取情绪
+                if (inBracket) {
+                    if (char === ']') {
+                        // 情绪读取完毕
+                        emo.push(currentEmo);
+                        setAvatar(currentEmo);
+                        // 换行符加到内容
+                        if (content !== "") content += "\n";
+                        inBracket = false;
+                        currentEmo = "";
+                    } else {
+                        currentEmo += char;
+                    }
+                    continue;
+                }
+                // 普通文本直接加进 content
+                content += char;
+            }
+            return content;
+        },
+        getResult() {
+            return content;
+        }
+    };
+}
+
 async function sendMessage() {
   controller = new AbortController();
   const signal = controller.signal;
@@ -284,33 +327,15 @@ async function sendMessage() {
     botMessage.className = "message bot";
     botMessage.innerText = "";
     log.appendChild(botMessage);
+    const parser = createStreamParser();
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
 
       const chunk = decoder.decode(value);
-      
-      const noNewlines = chunk.replace(/\r?\n|\t/g, "");
-      const matches = Array.from(noNewlines.matchAll(/\[([^\]]+)\]/g));
-      let emotion = null;
-      if (matches.length > 0) {
-        emotion = matches[matches.length - 1][1];
-        setAvatar(emotion);
-      }
-      let content = noNewlines.replace(/\[([^\]]+)\]/g, "\n");    
-      
-      // // 解析句首情绪词格式为 "[xx]"
-      // let emotion = null;
-      // let content = chunk;
-      // const match = content.match(/^\s*\[([^\]]+)\]/);
-      // if (match) {
-      //   emotion = match[1];
-      //   content = content.slice(match[0].length);
-      //   setAvatar(emotion);
-      // }
-      
-      assistantText += content;
+      parser.feed(chunk);
+      assistantText = parser.getResult();
       
       // ✅ 动态选择是否使用 marked
       const safeHTML = assistantText.includes("**") || assistantText.includes("```")
