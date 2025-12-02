@@ -251,16 +251,6 @@ function appendParagraphWithEmotion(emotion, text) {
   log.scrollTop = log.scrollHeight;
 }
 
-const emotionMap = {
-  "开心": "talking",
-  "生气": "angry",
-  "疑惑": "listening",
-  "调皮": "talking",
-  "认真": "平静",
-  "惊讶": "talking",
-  "平静": "平静"
-};
-
 async function sendMessage() {
   controller = new AbortController();
   const signal = controller.signal;
