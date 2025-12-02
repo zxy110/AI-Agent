@@ -257,7 +257,6 @@ async function sendMessage() {
   log.scrollTop = log.scrollHeight;
 
   lastUserText = text;
-  setAvatar("talking");
   document.getElementById("loading").style.display = "block";
 
   // 写入历史
@@ -291,8 +290,18 @@ async function sendMessage() {
       if (done) break;
 
       const chunk = decoder.decode(value);
-      assistantText += chunk;
 
+      // 解析句首情绪词格式为 "[xx]"
+      let emotion = null;
+      let content = chunk;
+      const match = content.match(/^\s*\[([^\]]+)\]/);
+      if (match) {
+        emotion = match[1];
+        content = content.slice(match[0].length);
+        setAvatar(emotion);
+      }
+      assistantText += content;
+      
       // ✅ 动态选择是否使用 marked
       const safeHTML = assistantText.includes("**") || assistantText.includes("```")
         ? DOMPurify.sanitize(marked.parse(assistantText))
@@ -322,7 +331,7 @@ async function sendMessage() {
     log.scrollTop = log.scrollHeight;
 
     document.getElementById("loading").style.display = "none";
-    setAvatar("normal");
+    setAvatar("疑惑");
   }
 }
 
@@ -333,13 +342,7 @@ function speakText(text) {
   utterance.pitch = 1.1;
   utterance.rate = nightMode ? 0.85 : 1.0;
   if (selectedVoice) utterance.voice = selectedVoice;
-  utterance.onstart = () => {
-    if (lastUserText.includes("生气")) {
-      setAvatar("angry");
-    } else {
-      setAvatar("talking");
-    }
-  };
+  utterance.onstart = () => setAvatar("疑惑");
   utterance.onend = () => setAvatar("normal");
   speechSynthesis.speak(utterance);
 }
@@ -356,7 +359,7 @@ function startListening() {
 
   recognition.onstart = function() {
     console.log("开始聆听...");
-    setAvatar("listening");
+    setAvatar("疑惑");
   };
 
   recognition.onresult = function(event) {
@@ -380,16 +383,16 @@ function startListening() {
 function setAvatar(state) {
   const avatar = document.getElementById("avatar");
   switch(state) {
-    case "talking":
+    case "开心":
       avatar.src = "imgs/开心.jpg";
       break;
-    case "listening":
+    case "疑惑":
       avatar.src = "imgs/疑惑.jpg";
       break;
-    case "angry":
+    case "生气":
       avatar.src = "imgs/生气.jpg";
       break;
-    case "blinking":
+    case "眨眼":
       blinkAnimation();
       break;
     default:
