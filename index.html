@@ -262,8 +262,7 @@ function createStreamParser() {
                         // 情绪读取完毕
                         emo.push(currentEmo);
                         setAvatar(currentEmo);
-                        // 换行符加到内容
-                        if (content !== "") content += "\n";
+                        console.log(emo);
                         inBracket = false;
                         currentEmo = "";
                     } else {
