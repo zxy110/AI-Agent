@@ -239,18 +239,6 @@ function stopStreaming() {
   }
 }
 
-function appendParagraphWithEmotion(emotion, text) {
-  // 设置表情图
-  setAvatar(emotion);
-  // 渲染聊天
-  const log = document.getElementById("chatlog");
-  const botMessage = document.createElement("div");
-  botMessage.className = "message bot";
-  botMessage.innerHTML = DOMPurify.sanitize(marked.parse(text));
-  log.appendChild(botMessage);
-  log.scrollTop = log.scrollHeight;
-}
-
 async function sendMessage() {
   controller = new AbortController();
   const signal = controller.signal;
@@ -259,6 +247,8 @@ async function sendMessage() {
   if (text === "") return;
 
   const log = document.getElementById("chatlog");
+
+  // 用户消息
   const userMessage = document.createElement("div");
   userMessage.className = "message user";
   userMessage.innerText = text;
@@ -270,8 +260,11 @@ async function sendMessage() {
   setAvatar("talking");
   document.getElementById("loading").style.display = "block";
 
+  // 写入历史
   messageHistory.push({ role: "user", content: text });
   if (messageHistory.length > 21) messageHistory.splice(1, 2);
+
+  let assistantText = "";
 
   try {
     const res = await fetch("https://ai-99s8.onrender.com/chat_stream", {
@@ -281,54 +274,58 @@ async function sendMessage() {
       signal: signal
     });
 
-    if (!res.ok || !res.body) throw new Error("服务器无响应");
+    if (!res.ok || !res.body) {
+      throw new Error("服务器无响应");
+    }
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
-    let buffer = "";
+
+    const botMessage = document.createElement("div");
+    botMessage.className = "message bot";
+    botMessage.innerText = "";
+    log.appendChild(botMessage);
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
 
-      const chunk = decoder.decode(value, { stream: true });
-      buffer += chunk;
+      const chunk = decoder.decode(value);
+      assistantText += chunk;
 
-      let match;
-      while ((match = buffer.match(/^\s*\[(\S{1,5})\]\s*([\s\S]*?)(?=(\n\[|$))/))) {
-        const emotion = match[1].trim();
-        const text = match[2].trim();
+      // ✅ 动态选择是否使用 marked
+      const safeHTML = assistantText.includes("**") || assistantText.includes("```")
+        ? DOMPurify.sanitize(DOMPurify.sanitize(marked.parse(assistantText));)
+        : DOMPurify.sanitize(assistantText.replace(/\n/g, "<br>"));
+      botMessage.innerHTML = safeHTML;
 
-        setAvatar(emotionMap[emotion] || "平静");
-
-        const botMessage = document.createElement("div");
-        botMessage.className = "message bot";
-        botMessage.innerText = text;
-        log.appendChild(botMessage);
-        log.scrollTop = log.scrollHeight;
-
-        buffer = buffer.slice(match[0].length);
-      }
+      log.scrollTop = log.scrollHeight;
     }
 
-    messageHistory.push({ role: "assistant", content: buffer.trim() });
+    messageHistory.push({ role: "assistant", content: assistantText });
+
     document.getElementById("loading").style.display = "none";
+<!--    speakText(assistantText);-->
     setAvatar("normal");
+
   } catch (err) {
     if (err.name === "AbortError") {
       console.log("用户中止了输出");
       return;
     }
     console.error("流式错误：", err);
+
     const botMessage = document.createElement("div");
     botMessage.className = "message bot";
     botMessage.innerText = "哎呀，小初迷路啦，网络好像断开了～";
     log.appendChild(botMessage);
     log.scrollTop = log.scrollHeight;
+
     document.getElementById("loading").style.display = "none";
     setAvatar("normal");
   }
 }
+
 
 function speakText(text) {
   const utterance = new SpeechSynthesisUtterance(text);
