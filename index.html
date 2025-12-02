@@ -295,7 +295,7 @@ async function sendMessage() {
 
       // ✅ 动态选择是否使用 marked
       const safeHTML = assistantText.includes("**") || assistantText.includes("```")
-        ? DOMPurify.sanitize(marked.parse(assistantText));
+        ? DOMPurify.sanitize(marked.parse(assistantText))
         : DOMPurify.sanitize(assistantText.replace(/\n/g, "<br>"));
       botMessage.innerHTML = safeHTML;
 
