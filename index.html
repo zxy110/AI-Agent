@@ -281,6 +281,13 @@ function createStreamParser() {
     };
 }
 
+function fixMarkdownTables(text) {
+  return text.replace(
+    /(\|.*\|\s*\n\|.*\|\s*\n(?:\|.*\|\s*\n)+)(\S)/g,
+    '$1\n$2'
+  );
+}
+
 async function sendMessage() {
   controller = new AbortController();
   const signal = controller.signal;
@@ -336,6 +343,8 @@ async function sendMessage() {
       parser.feed(chunk);
       assistantText = parser.getResult();
       
+      // fix 表格问题
+      const assistantText = fixMarkdownTables(assistantText)
       // ✅ 动态选择是否使用 marked
       const safeHTML = assistantText.includes("**") || assistantText.includes("```") || assistantText.includes("|")
         ? DOMPurify.sanitize(marked.parse(assistantText))
@@ -367,7 +376,6 @@ async function sendMessage() {
     setAvatar("疑惑");
   }
 }
-
 
 function speakText(text) {
   const utterance = new SpeechSynthesisUtterance(text);
