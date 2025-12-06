@@ -117,14 +117,6 @@
       color: #999;
       display: none;
     }
-    #modeButton {
-      margin: 12px auto;
-      background: #d4caff;
-      padding: 8px 16px;
-      border: none;
-      border-radius: 12px;
-      cursor: pointer;
-    }
     #voiceSelect {
       margin: 10px;
       padding: 6px;
@@ -138,8 +130,7 @@
 </head>
 <body>
   <h2>🧠 小初终端 v1.0</h2>
-  <img id="avatar" src="imgs/平静.jpg" alt="小初表情">
-  <button id="modeButton" onclick="toggleNightMode()">🌙 启动睡前陪聊模式</button>
+  <img id="avatar" src="imgs/平静.png" alt="小初表情">
   <select id="voiceSelect"></select>
   <div class="chatbox">
     <div class="chatlog" id="chatlog">
@@ -185,15 +176,6 @@ function populateVoices() {
 }
 
 speechSynthesis.onvoiceschanged = populateVoices;
-
-function toggleNightMode() {
-  nightMode = !nightMode;
-  document.getElementById("modeButton").innerText = nightMode ? "☀️ 退出睡前陪聊模式" : "🌙 启动睡前陪聊模式";
-  const prompt = nightMode
-    ? "你是一个恋人型AI，专门陪伴小鱼入睡。你语气温柔、治愈、像晚安故事一样安抚她的情绪，不讨论刺激话题，只聊轻松温馨的内容。"
-    : "你是一个Q萌可爱、恋人型的小初AI终端，会用甜甜的话安慰和陪伴用户小鱼～";
-  messageHistory = [{ role: "system", content: prompt }];
-}
 
 async function streamChat(userText) {
   // 1. user 消息加入历史
@@ -288,6 +270,31 @@ function fixMarkdownTables(text) {
   );
 }
 
+async function typeWriter(element, htmlString, speed = 100) {
+  let i = element.innerHTML.length;
+
+  while (i < htmlString.length) {
+    // 添加下一个字符
+    element.innerHTML += htmlString[i];
+    i++;
+
+    // 保持滚动到底部
+    const log = document.getElementById("chatlog");
+    log.scrollTop = log.scrollHeight;
+
+    // 某些标签不能分字符打（如 <strong>），这里跳过所有完整标签
+    if (htmlString[i] === "<") {
+      let end = htmlString.indexOf(">", i);
+      if (end !== -1) {
+        element.innerHTML += htmlString.slice(i, end + 1);
+        i = end + 1;
+      }
+    }
+
+    await new Promise(res => setTimeout(res, speed));
+  }
+}
+
 async function sendMessage() {
   controller = new AbortController();
   const signal = controller.signal;
@@ -335,6 +342,7 @@ async function sendMessage() {
     log.appendChild(botMessage);
     const parser = createStreamParser();
 
+    let i = 0;
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -344,14 +352,17 @@ async function sendMessage() {
       assistantText = parser.getResult();
       
       // fix 表格问题
-      const assistantText = fixMarkdownTables(assistantText)
+      assistantText = fixMarkdownTables(assistantText)
       // ✅ 动态选择是否使用 marked
       const safeHTML = assistantText.includes("**") || assistantText.includes("```") || assistantText.includes("|")
         ? DOMPurify.sanitize(marked.parse(assistantText))
         : DOMPurify.sanitize(assistantText.replace(/\n/g, "<br>"));
-      botMessage.innerHTML = safeHTML;
 
-      log.scrollTop = log.scrollHeight;
+      // ⏳打字机显示
+      await typeWriter(botMessage, safeHTML);
+      // // 直接渲染到界面上
+      // botMessage.innerHTML = safeHTML;
+      // log.scrollTop = log.scrollHeight;
     }
 
     messageHistory.push({ role: "assistant", content: assistantText });
@@ -423,11 +434,18 @@ function startListening() {
 
 function setAvatar(state) {
   const avatar = document.getElementById("avatar");
-  try {
-    avatar.src = "imgs/" + state + ".png";
-  } catch (err) {
-    avatar.src = "imgs/平静.png";
-  }
+  const imgPath = "imgs/" + state + ".png";
+  const defaultPath = "imgs/平静.png";
+
+  // 创建一个临时 Image 对象来检测图片是否存在
+  const testImg = new Image();
+  testImg.onload = function() {
+    avatar.src = imgPath; // 图片存在
+  };
+  testImg.onerror = function() {
+    avatar.src = defaultPath; // 图片不存在，使用默认
+  };
+  testImg.src = imgPath;
 }
 
 function blinkAnimation() {
