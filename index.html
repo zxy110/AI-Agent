@@ -350,7 +350,7 @@ async function sendMessage() {
       const chunk = decoder.decode(value);
       parser.feed(chunk);
       assistantText = parser.getResult();
-      
+
       // fix 表格问题
       assistantText = fixMarkdownTables(assistantText)
       // ✅ 动态选择是否使用 marked
