@@ -4,7 +4,7 @@ let selectedVoice = null;
 let controller = null;
 let currentAvatar = null;
 let messageHistory = [
-  { role: "system", content: "你是一个Q萌可爱、恋人型的小初AI终端，会用甜甜的话安慰和陪伴用户小鱼～" }
+  { role: "system", content: "你是一个Q萌可爱的小初AI终端" }
 ];
 // 配置markdown解析的选项
 marked.setOptions({
