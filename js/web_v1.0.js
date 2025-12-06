@@ -2,6 +2,7 @@ let lastUserText = "";
 let nightMode = false;
 let selectedVoice = null;
 let controller = null;
+let currentAvatar = null;
 let messageHistory = [
   { role: "system", content: "你是一个Q萌可爱、恋人型的小初AI终端，会用甜甜的话安慰和陪伴用户小鱼～" }
 ];
@@ -261,18 +262,16 @@ function startListening() {
 }
 
 function setAvatar(state) {
+  if (currentAvatar === state) return; // 避免重复加载
+  currentAvatar = state;
+
   const avatar = document.getElementById("avatar");
   const imgPath = "imgs/" + state + ".png";
   const defaultPath = "imgs/平静.png";
 
-  // 创建一个临时 Image 对象来检测图片是否存在
   const testImg = new Image();
-  testImg.onload = function() {
-    avatar.src = imgPath; // 图片存在
-  };
-  testImg.onerror = function() {
-    avatar.src = defaultPath; // 图片不存在，使用默认
-  };
+  testImg.onload = () => { avatar.src = imgPath; };
+  testImg.onerror = () => { avatar.src = defaultPath; };
   testImg.src = imgPath;
 }
 
