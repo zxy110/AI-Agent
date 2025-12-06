@@ -423,21 +423,10 @@ function startListening() {
 
 function setAvatar(state) {
   const avatar = document.getElementById("avatar");
-  switch(state) {
-    case "开心":
-      avatar.src = "imgs/开心.jpg";
-      break;
-    case "疑惑":
-      avatar.src = "imgs/疑惑.jpg";
-      break;
-    case "生气":
-      avatar.src = "imgs/生气.jpg";
-      break;
-    case "眨眼":
-      blinkAnimation();
-      break;
-    default:
-      avatar.src = "imgs/平静.jpg";
+  try {
+    avatar.src = "imgs/" + state + ".png";
+  } catch (err) {
+    avatar.src = "imgs/平静.png";
   }
 }
 
