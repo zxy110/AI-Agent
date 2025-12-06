@@ -3,29 +3,30 @@ import requests
 from .base_agent import BaseAgent
 
 
-class OpenAIAgent(BaseAgent):
+class DeepSeekAgent(BaseAgent):
 
-    def __init__(self, api_key, model_name):
+    def __init__(self, api_key, model="deepseek-chat"):
         self.api_key = api_key
-        self.model_name = model_name
-        self.url = "https://api.openai.com/v1/chat/completions"
+        self.model = model
+        self.url = "https://api.deepseek.com/v1/chat/completions"
 
     def _convert_messages(self, messages):
-        """将 OpenAI 式 messages 转成 OpenAI-completions 所需结构（基本保持原样）"""
+        """将 OpenAI 式 messages 转成 DeepSeek 所需结构（其实保持原样即可）"""
         converted = []
         for m in messages:
             converted.append({
                 "role": m["role"],
-                "content": m["content"]
+                "content": m["content"],
             })
         return converted
 
     def stream_chat(self, messages):
-        """流式读取 OpenAI 的 SSE 风格响应"""
+        """流式读取 DeepSeek 的 SSE 风格响应"""
+
         payload = {
-            "model": self.model_name,
+            "model": self.model,
+            "stream": True,
             "messages": self._convert_messages(messages),
-            "stream": True
         }
 
         headers = {
@@ -37,21 +38,23 @@ class OpenAIAgent(BaseAgent):
             self.url,
             json=payload,
             headers=headers,
-            stream=True
+            stream=True,
         )
 
+        # 按行读取 SSE 数据
         for raw in resp.iter_lines():
             if not raw:
                 continue
 
             line = raw.decode().strip()
 
-            # OpenAI 的 SSE 行一般为：data: {...}
+            # DeepSeek 返回格式：data: {...}
             if not line.startswith("data:"):
                 continue
 
             data_str = line[len("data:"):].strip()
 
+            # DONE 标识
             if data_str == "[DONE]":
                 break
 
@@ -60,9 +63,14 @@ class OpenAIAgent(BaseAgent):
             except:
                 continue
 
-            # ⭐ 从 delta 中不断取内容
-            delta = obj.get("choices", [{}])[0].get("delta", {})
-            if "content" in delta:
-                text = delta["content"]
+            # ⭐ DeepSeek 的 delta 在 choices[0].delta.content
+            choices = obj.get("choices", [])
+            if not choices:
+                continue
+
+            delta = choices[0].get("delta", {})
+            text = delta.get("content")
+
+            if text:
                 print(text)
                 yield text

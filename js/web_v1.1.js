@@ -64,9 +64,9 @@ function createStreamParser() {
                     if (char === ']') {
                         // 情绪读取完毕
                         emo.push(currentEmo);
+                        console.log(emo)
                         // 记录下标和情绪，即当前情绪插入位置
                         emoMap[index] = currentEmo;
-                        console.log(emoMap)
                         inBracket = false;
                         currentEmo = "";
                     } else {
@@ -76,11 +76,7 @@ function createStreamParser() {
                 }
                 // 普通文本直接加进 content
                 content += char;
-                if (char === '\n') {
-                    index += 4;
-                } else {
-                    index += 1;
-                }
+                index += 1;
             }
             return content;
         },
@@ -93,65 +89,125 @@ function createStreamParser() {
     };
 }
 
-function fixMarkdownTables(text) {
-    // 在表格后添加明确的换行分隔符
-    const lines = text.split('\n');
-    let inTable = false;
-    for (let i = 0; i < lines.length; i++) {
-        if (lines[i].trim().startsWith('|') && lines[i].trim().endsWith('|')) {
-            inTable = true;
-        } else if (inTable && lines[i].trim() === '') {
-            // 空行结束表格
-            inTable = false;
-        } else if (inTable && !lines[i].trim().startsWith('|')) {
-            // 非表格行，在上一个表格行后添加换行
-            lines[i-1] = lines[i-1] + '\n';
-            inTable = false;
+async function smartRender(element, emoMap, text, speed = 100) {
+  element.innerHTML = '';
+
+  // 按段落分割，但保持Markdown结构
+  const paragraphs = splitIntoSemanticBlocks(text);
+  let totalChars = 0;
+
+  for (const block of paragraphs) {
+    if (block.type === 'plain') {
+      // 纯文本逐字符显示
+      await renderTextWithEmotions(element, block.content, emoMap, totalChars, speed);
+      totalChars += block.content.length;
+    } else {
+      // Markdown块整体渲染
+      const html = DOMPurify.sanitize(marked.parse(block.content));
+      element.innerHTML += html;
+      totalChars += block.content.length;
+      // 更新滚动
+      const log = document.getElementById("chatlog");
+      log.scrollTop = log.scrollHeight;
+    }
+  }
+}
+
+function splitIntoSemanticBlocks(text) {
+  const lines = text.split('\n');
+  const blocks = [];
+  let currentBlock = [];
+  let currentType = 'plain'; // plain 或 markdown
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    // 判断是否是Markdown元素
+    const isMarkdownElement =
+      trimmed.startsWith('#') ||                    // 标题
+      trimmed.match(/^[-*+]\s+/) ||                 // 无序列表
+      trimmed.match(/^\d+\.\s+/) ||                 // 有序列表
+      (trimmed.startsWith('|') && trimmed.endsWith('|')) || // 表格
+      trimmed.startsWith('```') ||                  // 代码块
+      trimmed.match(/^>{1,}\s+/) ||                 // 引用块
+      trimmed.match(/^`{3,}/) ||                    // 代码块
+      trimmed.match(/^-{3,}$/) ||                   // 分隔线
+      trimmed.match(/^={3,}$/);                     // 分隔线
+
+    if (isMarkdownElement) {
+      // 如果之前的块是纯文本，先保存
+      if (currentBlock.length > 0 && currentType === 'plain') {
+        blocks.push({
+          type: 'plain',
+          content: currentBlock.join('\n')
+        });
+        currentBlock = [];
+      }
+      currentType = 'markdown';
+      currentBlock.push(line);
+    } else {
+      // 空行分隔区块
+      if (trimmed === '' && currentBlock.length > 0) {
+        blocks.push({
+          type: currentType,
+          content: currentBlock.join('\n')
+        });
+        currentBlock = [];
+        currentType = 'plain';
+        continue;
+      }
+
+      if (currentType === 'markdown' && trimmed !== '') {
+        // Markdown区块的延续（如表格的第二行、列表的续行）
+        currentBlock.push(line);
+      } else {
+        // 纯文本
+        if (currentType === 'markdown') {
+          // 切换到纯文本
+          blocks.push({
+            type: 'markdown',
+            content: currentBlock.join('\n')
+          });
+          currentBlock = [];
+          currentType = 'plain';
         }
-    }
-    // 如果最后还在表格中，确保有换行
-    if (inTable && lines.length > 0) {
-        lines[lines.length - 1] = lines[lines.length - 1] + '\n';
-    }
-    return lines.join('\n');
-}
-
-function shouldRenderAsHTML(text) {
-  const mdPatterns = [
-    /\*\*(.*?)\*\*/g,       // 粗体
-    /`[^`]+`/g,             // 行内代码
-    /```[\s\S]*?```/g,      // 代码块
-    /^#{1,6}\s+/m,          // 标题
-    /^\s*[-*+]\s+/m,        // 无序列表
-    /^\s*\d+\.\s+/m,        // 有序列表
-    /^\|.*\|/m,             // markdown 表格
-    /<table/i               // html 表格
-  ];
-  return mdPatterns.some(pattern => pattern.test(text));
-}
-
-async function typeWriter(element, emoMap, htmlString, speed = 100) {
-  let i = element.innerHTML.length;
-  while (i < htmlString.length) {
-    // 情绪变换
-    if (emoMap.hasOwnProperty(i)) {
-        setAvatar(emoMap[i]);
-    }
-    // 添加下一个字符
-    element.innerHTML += htmlString[i];
-    i++;
-    // 保持滚动到底部
-    const log = document.getElementById("chatlog");
-    log.scrollTop = log.scrollHeight;
-    // 某些标签不能分字符打（如 <strong>），这里跳过所有完整标签
-    if (htmlString[i] === "<") {
-      let end = htmlString.indexOf(">", i);
-      if (end !== -1) {
-        element.innerHTML += htmlString.slice(i, end + 1);
-        i = end + 1;
+        currentBlock.push(line);
       }
     }
-    await new Promise(res => setTimeout(res, speed));
+  }
+  // 处理最后一个块
+  if (currentBlock.length > 0) {
+    blocks.push({
+      type: currentType,
+      content: currentBlock.join('\n')
+    });
+  }
+  return blocks;
+}
+
+async function renderTextWithEmotions(element, text, emoMap, offset, speed) {
+  // 渲染文本并处理表情
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const globalIndex = offset + i;
+    // 检查表情
+    if (emoMap[globalIndex]) {
+      setAvatar(emoMap[globalIndex]);
+    }
+    // 处理换行符
+    if (char === '\n') {
+      element.innerHTML += '<br>';
+    } else {
+      element.innerHTML += char;
+    }
+    // 延迟
+    if (speed > 0) {
+      await new Promise(resolve => setTimeout(resolve, speed));
+    }
+    // 保持滚动
+    const log = document.getElementById("chatlog");
+    log.scrollTop = log.scrollHeight;
   }
 }
 
@@ -161,7 +217,6 @@ async function sendMessage() {
   const input = document.getElementById("userInput");
   const text = input.value.trim();
   if (text === "") return;
-
   const log = document.getElementById("chatlog");
 
   // 用户消息
@@ -181,7 +236,7 @@ async function sendMessage() {
   let assistantText = "";
 
   try {
-    const res = await fetch("https://ai-99s8.onrender.com/chat_stream", {
+    const res = await fetch("http://172.20.10.9:5001/chat_stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messages: messageHistory }),
@@ -197,35 +252,19 @@ async function sendMessage() {
 
     const botMessage = document.createElement("div");
     botMessage.className = "message bot";
-    botMessage.innerText = "";
     log.appendChild(botMessage);
     const parser = createStreamParser();
 
-    let i = 0;
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-
       const chunk = decoder.decode(value);
       parser.feed(chunk);
-      assistantText = parser.getResult();
-      emoMap = parser.getEmoMap()
-
-      // fix 表格问题
-      assistantText = fixMarkdownTables(assistantText)
-      // ✅ 动态选择是否使用 marked
-      if (shouldRenderAsHTML(assistantText)) {
-        // 直接渲染到界面上
-        botMessage.innerHTML = DOMPurify.sanitize(marked.parse(assistantText));
-        log.scrollTop = log.scrollHeight;
-      } else {
-        // ⏳打字机显示
-        await typeWriter(botMessage, emoMap, assistantText.replace(/\n/g, "<br>"));
-      }
+      const rawText = parser.getResult();
+      const emoMap = parser.getEmoMap();
+      await smartRender(botMessage, emoMap, rawText);
+      log.scrollTop = log.scrollHeight;
     }
-    messageHistory.push({ role: "assistant", content: assistantText });
-    document.getElementById("loading").style.display = "none";
-
   } catch (err) {
     if (err.name === "AbortError") {
       console.log("用户中止了输出");
@@ -243,4 +282,3 @@ async function sendMessage() {
     setAvatar("困惑");
   }
 }
-
